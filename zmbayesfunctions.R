@@ -38,10 +38,12 @@ post_pred<-function(sampleDF,postDF,invlinkfun){
 	Csamp<-dim(sample.mat)[2]
 	
 	#posteriors
-	post.mat<-as.matrix(post.df)
+	post.mat<-as.matrix(postDF)
 	post.mat.T<-t(post.mat)
 	Rpost<-dim(post.mat.T)[1]
-	stopifnot(Rpost==Csamp)
+	if(Rpost!=Csamp){
+		stop("Columns in sampleDF != Rows in postDF. Did you forget an intercept or an interaction term in your sampleDF? Did you leave the deviance in your postDF by accident?")
+	}
 	
 	#Calculate
 	post.pred<-sample.mat%*%post.mat.T
@@ -63,8 +65,17 @@ post_pred<-function(sampleDF,postDF,invlinkfun){
 bayes_outtab<-function(fit,caption="Posterior fit with 95% upper/lower",label="tab:output"){
 	devtools::source_url("https://raw.githubusercontent.com/jkarreth/JKmisc/master/mcmctab.R")
 	out.prep<-mcmctab(as.mcmc(fit))
-	out.tab<-xtable(elec.regtable,caption=caption,label=label)
+	out.tab<-xtable(out.prep,caption=caption,label=label)
 	return(out.tab)
+}
+
+bayes_postDF<-function(fit){
+	"This function requires a fitted object that can be represented by the 
+	as.mcmc() function."
+	.mat<-as.matrix(as.mcmc(fit))
+	.postdf<-as.data.frame(.mat)
+	.postdf$deviance<-NULL
+	return(.postdf)
 }
 
 #########
@@ -73,6 +84,11 @@ bayes_outtab<-function(fit,caption="Posterior fit with 95% upper/lower",label="t
 inv_logit<-function(x){
 	"An inverse logit function to transform linear prediction to logit space"
 	ret<-(exp(x))/(1+exp(x))
+	return(ret)
+}
+
+inv_probit<-function(x){
+	ret<-pnorm(x)
 	return(ret)
 }
 
