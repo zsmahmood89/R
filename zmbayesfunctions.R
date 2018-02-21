@@ -62,6 +62,88 @@ post_pred<-function(sampleDF,postDF,invlinkfun){
 	return(sample.pred)	
 }
 
+post_firstdiff<-function(sampleDF1,sampleDF2,postDF,invlinkfun){
+	"This is a function which allows you to generate posterior first-diffs
+		for sapmleDF2 - sampleDF1 (in that order).
+		
+	It uses the given dataframes and creates an N*K matrix for each sampleDF, 
+		where N is the num of observations and K is the number of predictions
+		generated via the MCMC estimates (e.g. around 2,000). It calculates the
+		inverse link for each, yielding K estimates. It then calculates the
+		difference between pred2-pred1 and then returns quantiles of 
+		that difference.
+		
+	Inputs:
+		sampleDF_ = 2 data frames with columns per variable
+		postDF = posterior estimates for each parameter.
+		invlinkfun = link function to transform estimate to outcome. 
+			Note you can simply supply a function which just returns 
+			the estimate value (e.g. for a linear model).
+			
+	Notes:
+		The order of how sampleDF lists variables must be
+		identical to how they were inputted into the JAGS model.
+		If theres an intercept, the first column in sampleDF should be 1's."
+	
+	###############
+	#sample data 1
+	###############
+	sd.fin<-sampleDF1
+	samp.colnames<-colnames(sd.fin)
+	sample.mat<-as.matrix(sd.fin)
+	Csamp<-dim(sample.mat)[2]
+	
+	#posteriors
+	post.mat<-as.matrix(postDF)
+	post.mat.T<-t(post.mat)
+	Rpost<-dim(post.mat.T)[1]
+	if(Rpost!=Csamp){
+		stop("Columns in sampleDF1 != Rows in postDF. Did you forget an intercept or an interaction term in your sampleDF1? Did you leave the deviance in your postDF by accident?")
+	}
+	
+	#Calculate
+	post.pred<-sample.mat%*%post.mat.T
+	post.pred.p1<-invlinkfun(post.pred)
+
+	###############
+	#sample data 2
+	###############
+	sd.fin<-sampleDF2
+	samp.colnames<-colnames(sd.fin)
+	sample.mat<-as.matrix(sd.fin)
+	Csamp<-dim(sample.mat)[2]
+	
+	#posteriors
+	post.mat<-as.matrix(postDF)
+	post.mat.T<-t(post.mat)
+	Rpost<-dim(post.mat.T)[1]
+	if(Rpost!=Csamp){
+		stop("Columns in sampleDF2 != Rows in postDF. Did you forget an intercept or an interaction term in your sampleDF2? Did you leave the deviance in your postDF by accident?")
+	}
+	
+	#Calculate
+	post.pred<-sample.mat%*%post.mat.T
+	post.pred.p2<-invlinkfun(post.pred)
+
+	############
+	#Difference, quantiles, and columns
+	############
+	post.pred.p<-post.pred.p2-post.pred.p1
+	post.pred.p.quantiles<-apply(post.pred.p, 1, quantile, probs = 
+								c(0.025,0.1,0.25,0.5,0.75,0.9,0.975),  
+								na.rm = F)
+	post.pred.p.q.mat<-as.matrix(post.pred.p.quantiles)
+	post.pred.p.q.mat.T<-t(post.pred.p.q.mat)
+	
+	#Return sample matrix with predictions tacked on at the end
+	post.pred.df<-as.data.frame(post.pred.p.q.mat.T)
+	sample.pred<-as.data.frame(sample.mat)
+	sample.pred<-cbind(sample.pred,post.pred.df)
+	colnames(sample.pred)<-c(samp.colnames,c("perc2p5","perc10","perc25","perc50","perc75","perc90","perc97p5"))
+	warning("Returns covariate values from sampleDF2. Everything ran correctly.")
+	return(sample.pred)	
+}
+
 bayes_outtab<-function(fit,caption="Posterior fit with 95% upper/lower",label="tab:output"){
 	devtools::source_url("https://raw.githubusercontent.com/jkarreth/JKmisc/master/mcmctab.R")
 	out.prep<-mcmctab(as.mcmc(fit))
