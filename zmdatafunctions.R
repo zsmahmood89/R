@@ -71,10 +71,10 @@ eucdist<-function(x,y){
 }
 
 #####################################
-#Panel lagging (For use with "ddply")
+#Panel lagging (For use with "plyr" package)
 #Syntax: "ddply([dataframe],~[panelvar],transform,[newvar]=lg([oldvar],[lvalue]))"
 ######################################
 check<-function(h,lvalue){length(h)-lvalue}
-lag<-function(f,lvalue){c(f[1:lvalue],f[1:check(f,lvalue)])}
+lag<-function(f,lvalue,NAinit=T){if(NAinit){c(rep(NA,lvalue),f[1:check(f,lvalue)])}else{c(f[1:lvalue],f[1:check(f,lvalue)])}}
 nolag<-function(g){g}
-lg<-function(x,lvalue){if(check(x,lvalue)>0){lag(x,lvalue)}else{nolag(x)}}
+lg<-function(x,lvalue,NAinit=T){if(check(x,lvalue)>0){lag(x,lvalue,NAinit)}else{nolag(x)}}
